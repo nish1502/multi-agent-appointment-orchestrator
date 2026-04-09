@@ -1,0 +1,48 @@
+# Development Phases
+phase_1/
+phase_2/
+phase_3/
+phase_4/
+phase_5/
+phase_6/
+phase_7/
+v0_archived/
+production_app/
+
+# Internal Documents
+interview.md
+problemstatement.md
+PHASE_WISE_ARCHITECTURE.md
+DEMO_SCRIPT.md
+list_models.py
+
+# Environment Variables
+.env
+production/.env
+
+# Google API Credentials (in any folder)
+credentials.json
+token.json
+production/credentials.json
+production/token.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Gemini Workspace
+.gemini/

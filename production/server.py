@@ -1,0 +1,66 @@
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from orchestrator import Orchestrator, MockNLUEngine
+from nlu_engine import NLUEngine
+from session import SessionContext, State
+from dotenv import load_dotenv
+load_dotenv() # Load from .env file
+
+app = FastAPI()
+
+# 1. Security (CORS) - Allows your website to talk to your server
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 2. Setup the Brain
+try:
+    nlu = NLUEngine()
+    print("✅ Real NLU Engine Started (Groq)")
+except Exception as e:
+    print(f"⚠️ NLU Startup Warning: {e}. Using Mock AI Engine.")
+    nlu = MockNLUEngine()
+
+orch = Orchestrator(nlu)
+
+# 3. Simple in-memory storage for User Sessions
+# (In a big app, we would use a Database like Redis)
+sessions = {}
+
+@app.get("/", response_class=HTMLResponse)
+async def get_index():
+    """Serves the main website."""
+    # This path is relative to where we run the server
+    index_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    with open(index_path) as f:
+        return f.read()
+
+@app.post("/chat")
+async def chat(request: Request):
+    """Receives user input from the website and returns AI response."""
+    data = await request.json()
+    user_text = data.get("text")
+    session_id = data.get("session_id", "default")
+
+    # Get or create session
+    if session_id not in sessions:
+        sessions[session_id] = SessionContext(session_id=session_id)
+    
+    ctx = sessions[session_id]
+    
+    # Process message through our existing Orchestrator!
+    response = orch.handle_message(user_text, ctx)
+    
+    return {
+        "response": response,
+        "state": ctx.state
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
