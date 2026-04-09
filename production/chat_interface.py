@@ -7,8 +7,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from session import SessionContext
-from orchestrator import Orchestrator, MockNLUEngine, NLUEngine
+from production.session import SessionContext
+from production.orchestrator import Orchestrator, MockNLUEngine
+from production.nlu_engine import NLUEngine
 
 # Load the .env file
 load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))

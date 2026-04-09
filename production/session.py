@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional, List
-from domain import BookingPreference
+from production.domain import BookingPreference
 
 # State: These represent where the user is in the conversation.
 class State:
