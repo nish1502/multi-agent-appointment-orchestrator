@@ -2,9 +2,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from orchestrator import Orchestrator, MockNLUEngine
-from nlu_engine import NLUEngine
-from session import SessionContext, State
+from production.orchestrator import Orchestrator, MockNLUEngine
+from production.nlu_engine import NLUEngine
+from production.session import SessionContext, State
 from dotenv import load_dotenv
 load_dotenv() # Load from .env file
 

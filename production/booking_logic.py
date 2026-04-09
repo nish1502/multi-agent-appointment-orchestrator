@@ -2,7 +2,7 @@ import random
 import string
 from datetime import datetime, timedelta
 from typing import List
-from domain import Topic, TimeSlot, BookingPreference
+from production.domain import Topic, TimeSlot, BookingPreference
 
 # 1. BookingCodeGenerator: This creates a unique ID for every appointment.
 # Pattern: [A-Z]{2}-[A-Z][0-9]{3} (e.g., NL-A742)
@@ -18,7 +18,7 @@ class BookingCodeGenerator:
         
         return f"{prefix}-{mid}{suffix}"
 
-from google_calendar_auth import get_calendar_service
+from production.google_calendar_auth import get_calendar_service
 from datetime import datetime, timedelta, time
 
 class MockCalendarService:

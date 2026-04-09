@@ -1,6 +1,6 @@
 from fastmcp import FastMCP
 from datetime import datetime, timedelta
-from google_calendar_auth import get_calendar_service, get_docs_service, get_gmail_service
+from production.google_calendar_auth import get_calendar_service, get_docs_service, get_gmail_service
 import base64
 from email.message import EmailMessage
 

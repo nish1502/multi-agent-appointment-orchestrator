@@ -1,10 +1,10 @@
 import re
-from session import State, SessionContext
-from domain import Topic
-from nlu_engine import NLUEngine
+from production.session import State, SessionContext
+from production.domain import Topic
+from production.nlu_engine import NLUEngine
 
-from booking_logic import BookingCodeGenerator, MockCalendarService
-from mcp_server import calendar_create_hold, docs_append_prebooking, gmail_create_draft, calendar_cancel_booking
+from production.booking_logic import BookingCodeGenerator, MockCalendarService
+from production.mcp_server import calendar_create_hold, docs_append_prebooking, gmail_create_draft, calendar_cancel_booking
 
 # A Fake AI for users who don't have an API key yet
 class MockNLUEngine:
