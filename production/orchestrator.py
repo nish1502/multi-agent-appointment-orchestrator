@@ -23,142 +23,135 @@ class MockNLUEngine:
         return {"intent": "book_new", "topic": None, "investment_advice_requested": False}
 
 class Orchestrator:
-    # Check for PII like emails and phone numbers
-    PII_REGEX = r"[\w\.-]+@[\w\.-]+\.\w+|(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}"
+    # Check for PII like emails and phone numbers (including variations like "at the rate")
+    PII_REGEX = r"[\w\.-]+(@| at the rate | \[at\] )[\w\.-]+\.\w+|(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}"
 
     def __init__(self, nlu: NLUEngine):
         self.nlu = nlu
 
     def handle_message(self, user_text: str, ctx: SessionContext) -> str:
-        # 1. Check for PII (Security)
-        if re.search(self.PII_REGEX, user_text):
-            return "⚠️ Oops! Our policy is to keep things private. Please don't share contact details yet. What topic would you like to discuss?"
+        # 1. Privacy/Compliance Checks (Bypass everything)
+        if re.search(self.PII_REGEX, user_text, re.IGNORECASE):
+            return "I'm sorry, for your security, please do not share personal details like email or phone numbers on this call. I will give you a secure link at the end to provide those. Now, what topic can I help you with?"
 
-        # 2. Get AI/NLU Results
         nlu_result = self.nlu.parse(user_text)
-        intent = nlu_result.get("intent")
-        
-        # 3. Handle Secondary Intents (NEW IN PHASE 6)
-        if intent == "cancel":
-            code = nlu_result.get("booking_code")
-            if not code:
-                return "I'd be happy to help you cancel. Please provide your booking code (e.g., MJ-R257)."
-            
-            res = calendar_cancel_booking(code)
-            ctx.state = State.CLOSE
-            return f"{res}\nYour cancellation has also been logged for the advisor."
+        intent = nlu_result.get("intent", "unknown")
 
-        elif intent == "check_availability":
-            slots = MockCalendarService.find_two_slots(ctx.preference)
-            if not slots:
-                # PHASE 5: Waitlist logic
-                ctx.state = State.WAITLIST
-                return "I'm currently fully booked, but I can add you to my priority waitlist. Would you like that?"
-            
-            ctx.slots = slots
-            slot_text = "\n".join([f"{i+1}. {s.label_ist}" for i, s in enumerate(slots)])
-            return f"I have these windows open in IST:\n{slot_text}\n\nTo lock one in, could you tell me which topic you'd like to discuss? (KYC, SIP, etc.)"
-
-        elif intent == "reschedule":
-            return "To reschedule, please provide your booking code first so I can cancel the existing one, or just let me know which new slot you'd like!"
-
-        elif intent == "guidance":
-            if "kyc" in user_text.lower():
-                return "For KYC, please have your PAN Card, Aadhaar Card, and a cancelled cheque ready. Would you like to book a slot for the onboarding?"
-            return "Sure! For most meetings, bring your latest financial statements. Is there a specific topic you want guidance on?"
-
-        # 4. Compliance Check (Investment Advice)
+        # 2. Compliance: Investment Advice (Highest Priority)
         if nlu_result.get("investment_advice_requested"):
-            return "I cannot provide investment advice, but you can learn more about market basics here: https://www.investopedia.com/articles/basics/11/3-s-simple-investing.asp. Would you like to proceed with booking a slot for process-related questions?"
-            
-        # 5. Special Handling: Urgency/Angry User
-        if nlu_result.get("is_urgent"):
-            return "I understand you are upset. I will connect you to a human advisor immediately. Please hold."
+            return "As an AI, I provide informational guidance and cannot offer specific investment advice. I recommend checking educational resources like [Investopedia](https://www.investopedia.com) or speaking with a certified planner."
 
-        # 6. State Machine Transitions
+        # 3. Handle GREET and DISCLAIMER first (Mandatory Funnel)
         if ctx.state == State.GREET:
             ctx.state = State.DISCLAIMER
             return "Hello! I am your AI Advisor Scheduler. Before we begin, please note: I provide informational guidance and not investment advice. Do you understand?"
 
         if ctx.state == State.DISCLAIMER:
-            if "yes" in user_text.lower() or "understand" in user_text.lower():
+            affirmations = ["yes", "understand", "agree", "ok", "sure", "yeah"]
+            if any(word in user_text.lower() for word in affirmations):
                 ctx.disclaimer_accepted = True
                 ctx.state = State.BOOK_TOPIC
-                return "Great! What would you like to discuss with our advisor? (KYC, SIP, Tax, etc.)"
+                return "Great! What would you like to discuss with our advisor? (KYC, SIP, Tax, Withdrawals, or Account Changes)"
             else:
-                return "I need your acknowledgment of the disclaimer. Do you understand?"
+                return "I'm sorry, I need you to confirm you understand the disclaimer before we can proceed. Do you understand?"
 
-        if ctx.state == State.BOOK_TOPIC:
+        # 4. Slot Filling: Topic and Time (Greedy extraction)
+        # Always try to extract topic if we don't have it
+        if not ctx.preference.topic:
             topic_str = nlu_result.get("topic")
+            # Fallback manual check
+            if not topic_str:
+                for t in Topic:
+                    if t.value.split("/")[0].lower() in user_text.lower():
+                        topic_str = t.value
             
-            # Map the string back to our Topic Enum
-            for t in Topic:
-                if t.value == topic_str:
-                    ctx.preference.topic = t
-                    break
-            
-            if ctx.preference.topic:
-                # To test the waitlist, you can set force_full=True here!
-                slots = MockCalendarService.find_two_slots(ctx.preference, force_full=False)
-                
-                if not slots:
-                    ctx.state = State.WAITLIST
-                    return f"I've noted your interest in {ctx.preference.topic.value}, but our advisor is currently fully booked. Would you like to be added to our Priority Waitlist? (Yes/No)"
+            if topic_str:
+                for t in Topic:
+                    if t.value.lower() == topic_str.lower() or topic_str.lower() in t.value.lower():
+                        ctx.preference.topic = t
+                        if ctx.state == State.BOOK_TOPIC: ctx.state = State.BOOK_TIME
+                        break
 
-                ctx.state = State.CONFIRM_SLOT
-                response = f"I've noted that you're interested in {ctx.preference.topic.value}.\n"
-                response += "I found these available slots (IST):\n"
-                for i, s in enumerate(slots):
-                    response += f"{i+1}. {s.label_ist}\n"
-                response += "\nPlease type the number to pick a slot."
-                return response
-            else:
-                return "I'm sorry, I couldn't identify the topic. We cover KYC, SIP, Tax, Withdrawals, and Account Changes. Which one do you need?"
-
+        # Always try to extract intent-based info (Waitlist first)
         if ctx.state == State.WAITLIST:
-            if "yes" in user_text.lower():
-                # Side effect for waitlist
+            affirmations = ["yes", "yeah", "ok", "sure", "want"]
+            if any(word in user_text.lower() for word in affirmations):
                 booking_code = BookingCodeGenerator.generate()
-                doc_res = docs_append_prebooking(booking_code, ctx.preference.topic.value, "WAITLIST-2026-04-09")
+                docs_append_prebooking(booking_code, ctx.preference.topic.value if ctx.preference.topic else "General", "WAITLIST-2026-04-09")
                 ctx.state = State.CLOSE
                 return f"✅ Done! You've been added to the Priority Waitlist. Your reference code is **{booking_code}**. We will alert you in IST as soon as a slot opens up."
             else:
                 ctx.state = State.CLOSE
                 return "No problem. Let me know if you change your mind. Have a great day!"
 
-        if ctx.state == State.CONFIRM_SLOT:
-            # ... (rest of slot selection logic)
-            # Simple number parsing for beginner demo
-            try:
-                choice = int(re.search(r"\d", user_text).group())
-                slots = MockCalendarService.find_two_slots(ctx.preference)
-                if 1 <= choice <= len(slots):
-                    selected_slot = slots[choice-1]
-                    
-                    # --- EXECUTE PHASE 4 SIDE EFFECTS ---
-                    booking_code = BookingCodeGenerator.generate()
-                    
-                    # 1. Calendar Hold
-                    # We store the booking code in the description so we can find it later to cancel!
-                    cal_res = calendar_create_hold(selected_slot.start_utc.isoformat(), f"{ctx.preference.topic.value} (Code: {booking_code})")
-                    
-                    # 2. Log to Doc
-                    doc_res = docs_append_prebooking(booking_code, ctx.preference.topic.value, "2026-04-09")
-                    
-                    # 3. Create Gmail Draft
-                    email_body = f"Hello Advisor, a new pre-booking {booking_code} has been created for {ctx.preference.topic.value} at {selected_slot.label_ist}."
-                    mail_res = gmail_create_draft("advisor@example.com", f"New Booking: {booking_code}", email_body)
+        # Handle specific Intents that might bypass states
+        if intent == "cancel":
+            return "To cancel, please provide your booking code. I can also help you book a new one if you like!"
+        
+        elif intent == "guidance":
+            response = "For financial meetings, it's best to have your latest statements ready."
+            if "tax" in user_text.lower(): response = "For tax, please bring your returns and Form 16."
+            elif "kyc" in user_text.lower(): response = "For KYC, have your PAN and Aadhaar ready."
+            return f"{response} Since we're ready, let's look for a slot. Which topic are we booking for?"
 
-                    ctx.state = State.CLOSE
-                    
-                    final_msg = f"🎉 **STRIKE! Booking Confirmed.**\n\nYour Booking Code is: **{booking_code}**\nSelected Slot: {selected_slot.label_ist}\n\n"
-                    final_msg += "Internal Actions Taken:\n"
-                    final_msg += f"- {cal_res}\n- {doc_res}\n- {mail_res}\n\n"
-                    final_msg += "Anything else I can help with?"
-                    return final_msg
-                else:
-                    return "Please choose a valid number (1 or 2)."
-            except:
-                return "I didn't catch a valid number. Please type 1 or 2."
+        # 5. Booking Logic (State-driven with Intent support)
+        if ctx.state == State.BOOK_TOPIC and not ctx.preference.topic:
+            return "Which topic would you like to discuss? (KYC, SIP, Tax, etc.)"
 
-        return "I'm not sure how to help. Let's start over!"
+        # If we have a topic but no time, find slots
+        if ctx.state == State.BOOK_TIME or (ctx.preference.topic and not ctx.proposed_slot):
+            # Check if user already picked a slot from the list we gave (by number or time)
+            if ctx.slots:
+                picked_index = -1
+                if "1" in user_text or "first" in user_text.lower(): picked_index = 0
+                elif "2" in user_text or "second" in user_text.lower(): picked_index = 1
+                
+                # Manual time check
+                for i, s in enumerate(ctx.slots):
+                    # Check if the time (e.g. 4:30) appears in user text
+                    time_part = s.label_ist.split(", ")[-1].split(" IST")[0] # e.g. "04:30 PM"
+                    if time_part.replace("0", "") in user_text.replace("0", ""):
+                        picked_index = i
+
+                if picked_index != -1:
+                    ctx.proposed_slot = ctx.slots[picked_index]
+                    ctx.state = State.CONFIRM
+                    ist_time = ctx.proposed_slot.label_ist
+                    return f"Great choice. So we're booking **{ctx.preference.topic.value}** for **{ist_time}**. Shall I go ahead and confirm this for you?"
+
+            # If no slot picked yet, offer them
+            slots = MockCalendarService.find_two_slots(ctx.preference)
+            if not slots:
+                ctx.state = State.WAITLIST
+                return "I'm currently fully booked for those dates, but I can add you to my priority waitlist. Would you like that?"
+            
+            ctx.slots = slots
+            slot_text = "\n".join([f"{i+1}. {s.label_ist}" for i, s in enumerate(slots)])
+            ctx.state = State.BOOK_TIME
+            return f"I have these windows open in IST:\n{slot_text}\n\nPlease tell me which one works for you, or just say '1' or '2'."
+
+        if ctx.state == State.CONFIRM:
+            affirmations = ["yes", "confirm", "go ahead", "do it", "sure", "book"]
+            if any(word in user_text.lower() for word in affirmations):
+                booking_code = BookingCodeGenerator.generate()
+                ist_time = ctx.proposed_slot.label_ist
+                
+                # MCP TRIPLE STRIKE
+                # 1. Calendar
+                title = f"Advisor Q&A - {ctx.preference.topic.value} - {booking_code}"
+                calendar_create_hold(ctx.proposed_slot.start_utc.isoformat(), title)
+                
+                # 2. Docs
+                docs_append_prebooking(booking_code, ctx.preference.topic.value, ist_time)
+                
+                # 3. Gmail Draft
+                subject = f"New Appointment: {ctx.preference.topic.value} ({booking_code})"
+                body = f"Hello, a new pre-booking has been created.\n\nTopic: {ctx.preference.topic.value}\nTime: {ist_time}\nCode: {booking_code}"
+                gmail_create_draft("advisor@example.com", subject, body)
+                
+                ctx.state = State.CLOSE
+                return f"✅ Confirmed! I've booked your **{ctx.preference.topic.value}** session for **{ist_time}**. Your booking code is **{booking_code}**. For your security, please visit [https://advisor.example.com/secure](https://advisor.example.com/secure) to provide your contact details. See you then!"
+            else:
+                return "No problem. Would you like to pick a different time or topic instead?"
+
+        return "I'm not sure how to help. Should we try booking an appointment from the start?"

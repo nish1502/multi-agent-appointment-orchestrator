@@ -6,11 +6,14 @@ from production.domain import BookingPreference
 class State:
     GREET = "GREET"
     DISCLAIMER = "DISCLAIMER"
-    INTENT = "INTENT" # What do you want to do?
+    INTENT = "INTENT" 
     BOOK_TOPIC = "BOOK_TOPIC"
-    CONFIRM_SLOT = "CONFIRM_SLOT"
+    BOOK_TIME = "BOOK_TIME"
+    CONFIRM = "CONFIRM"
     WAITLIST = "WAITLIST"
     CLOSE = "CLOSE"
+
+from production.domain import TimeSlot
 
 @dataclass
 class SessionContext:
@@ -18,6 +21,6 @@ class SessionContext:
     state: str = State.GREET
     disclaimer_accepted: bool = False
     preference: BookingPreference = field(default_factory=BookingPreference)
-    
-    # We store the conversation history here too.
+    slots: List[TimeSlot] = field(default_factory=list)
+    proposed_slot: Optional[TimeSlot] = None
     history: List[str] = field(default_factory=list)
