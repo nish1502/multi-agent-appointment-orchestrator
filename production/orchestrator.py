@@ -150,7 +150,7 @@ class Orchestrator:
                 gmail_create_draft("advisor@example.com", subject, body)
                 
                 ctx.state = State.CLOSE
-                return f"✅ Confirmed! I've booked your **{ctx.preference.topic.value}** session for **{ist_time}**. Your booking code is **{booking_code}**. For your security, please visit [https://advisor.example.com/secure](https://advisor.example.com/secure) to provide your contact details. See you then!"
+                return f"✅ Confirmed! I've booked your **{ctx.preference.topic.value}** session for **{ist_time}**. Your booking code is **{booking_code}**. For your security, please visit [https://secure.advisor-portal.com/finish](https://secure.advisor-portal.com/finish) to provide your contact details. See you then!"
             else:
                 return "No problem. Would you like to pick a different time or topic instead?"
 
