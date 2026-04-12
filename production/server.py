@@ -7,7 +7,11 @@ from production.orchestrator import Orchestrator, MockNLUEngine
 from production.nlu_engine import NLUEngine
 from production.session import SessionContext, State
 from dotenv import load_dotenv
-load_dotenv() # Load from .env file
+import os
+
+# Find the absolute path to the .env file in the production directory
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(dotenv_path) 
 
 app = FastAPI()
 
