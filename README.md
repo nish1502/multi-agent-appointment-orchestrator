@@ -1,5 +1,7 @@
 # Multi-Agent Advisor Appointment Orchestrator
 
+🎥 **[Watch Demo Video](https://drive.google.com/file/d/1wMl33KIjYXsvH4dZVDsREQHh7mqW_p_H/view?usp=sharing)** | 🌐 **[Live Prototype](https://multi-agent-appointment-orchestrator.onrender.com)**
+
 A high-performance, voice-enabled AI agent designed for financial advisor scheduling. This system combines robust NLU intent detection with real-world tool integration (Google Calendar, Google Docs, Gmail) while maintaining strict legal and PII compliance.
 
 ## 🚀 Key Features
@@ -63,11 +65,54 @@ This application is ready for deployment on **Render** or **Railway**.
 - **Environment**: Ensure all API keys are set in the deployment dashboard.
 - **Static Files**: Serves the frontend from the `static/` directory.
 
-## 🎙️ Demo Script snippet
-- "Hello, I'd like to book an appointment for KYC."
-- "Are you free on Monday?" (Triggers `check_availability`)
-- "What should I buy for high returns?" (Triggers Compliance Refusal)
-- "Cancel MY-K123." (Triggers `cancel`)
+## 🎙️ Official Demo Script (Used for Recording)
+
+**Voiceover/Prompt Sequence:**
+1.  **User**: "Hello" 
+2.  **Bot**: *(Disclaimer text)*
+3.  **User**: "Yes"
+4.  **Bot**: *(Asks for topic)*
+5.  **User**: "I want to book an appointment for KYC on boarding"
+6.  **Bot**: *(Offers Monday slots)*
+7.  **User**: "Second"
+8.  **Bot**: *(Confirms 4:30 PM slot)*
+9.  **User**: "Yes go ahead"
+10. **Bot**: "Confirmed! Your code is **EW-S779**..."
+11. **User**: "My phone number is 1234567890" (PII Rejection Test)
+12. **Bot**: "I'm sorry... please do not share personal details..." (Compliance Success)
 
 ---
-**Disclaimer**: This is a prototype system designed for educational and demonstration purposes.
+
+## 📅 Submission Artifacts (Evidence)
+
+### 1. Google Calendar Hold
+**Title**: `[TENTATIVE] Advisor Q&A - KYC/Onboarding - EW-S779`
+**Logic**: Created via `calendar_create_hold` tool.
+![Calendar Screenshot](./screenshots/calendar.png)
+
+### 2. Google Doc Entry (Advisor Pre-Bookings)
+**Actual Text Appended**:
+```
+[Monday, 13 April 2026, 04:30 PM IST] Code: EW-S779 | Topic: KYC/Onboarding | Status: TENTATIVE
+```
+![Doc Screenshot](./screenshots/doc.png)
+
+### 3. Gmail Email Draft
+**Subject**: `New Appointment: KYC/Onboarding (EW-S779)`
+**Body**: 
+> Hello, a new pre-booking has been created.
+> Topic: KYC/Onboarding
+> Time: Monday, 13 April 2026, 04:30 PM IST
+> Code: EW-S779
+![Email Screenshot](./screenshots/email.png)
+
+---
+
+## ⚙️ MCP Skills & Resilience
+- **W9 Voice Skills**: Handled confirmation, IST timezone repetition, and short, crisp responses.
+- **W5 Multi-Agent**: Synchronized data between Calendar, Docs, and Gmail using MCP tools.
+- **W2 Compliance**: Automated disclaimer delivery and PII rejection.
+- **W4 Slot-Filling**: Greedy extraction of topic + time window from natural language.
+
+---
+**Disclaimer**: This is a graduation project built for the AI Bootcamp. It demonstrates non-advice-giving AI orchestration for financial advisors.
